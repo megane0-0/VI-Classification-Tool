@@ -373,32 +373,25 @@ class FF120Calculator {
                     }
                 }
 
-                console.log(`Found ${visibleCells.length} valid visible Voronoi cells out of ${this.points.filter(p => p.isVisible).length} visible points`);
+                                console.log(`Found ${visibleCells.length} valid visible Voronoi cells out of ${this.points.filter(p => p.isVisible).length} visible points`);
 
-                // Union all visible cells iteratively
+                // Union all visible cells using Turf.js 7.x API
                 if (visibleCells.length > 0) {
-                    visibleRegion = visibleCells[0];
-
-                    for (let i = 1; i < visibleCells.length; i++) {
+                    if (visibleCells.length === 1) {
+                        // Only one cell, use it directly
+                        visibleRegion = visibleCells[0];
+                    } else {
+                        // Multiple cells: create FeatureCollection and union
                         try {
-                            const newUnion = turf.union(visibleRegion, visibleCells[i]);
-                            if (newUnion) {
-                                visibleRegion = newUnion;
-                            } else {
-                                console.warn(`Union returned null at cell ${i}`);
-                            }
+                            const cellCollection = turf.featureCollection(visibleCells);
+                            visibleRegion = turf.union(cellCollection);
+                            console.log('Union successful, final type:', visibleRegion.geometry.type);
                         } catch (e) {
-                            console.error(`Union failed at cell ${i}:`, e);
-                            // Continue with current union result
+                            console.error('Union failed, falling back to first cell:', e);
+                            visibleRegion = visibleCells[0];
                         }
                     }
-
-                    console.log('Final visible region type:', visibleRegion.geometry.type);
                 }
-            } catch (e) {
-                console.error('Could not create Voronoi-based visible region:', e);
-            }
-        }
         // Search for maximum visible diameter
         let maxDiameter = 0;
         let maxAngle = 0;
