@@ -352,19 +352,28 @@ class FF120Calculator {
                     return;
                 }
 
-                // Collect all visible cells
+                // Collect all valid visible cells
                 const visibleCells = [];
 
                 for (let i = 0; i < voronoiPolygons.features.length; i++) {
                     const cell = voronoiPolygons.features[i];
-                    const pointId = i; // Feature index corresponds to point index
+                    const pointId = i;
 
                     if (this.points[pointId] && this.points[pointId].isVisible) {
-                        visibleCells.push(cell);
+                        // Validate cell geometry before adding
+                        if (cell.geometry &&
+                            cell.geometry.type === 'Polygon' &&
+                            cell.geometry.coordinates &&
+                            cell.geometry.coordinates[0] &&
+                            cell.geometry.coordinates[0].length >= 4) {
+                            visibleCells.push(cell);
+                        } else {
+                            console.warn(`Skipping invalid Voronoi cell ${i}`);
+                        }
                     }
                 }
 
-                console.log(`Found ${visibleCells.length} visible Voronoi cells out of ${this.points.filter(p => p.isVisible).length} visible points`);
+                console.log(`Found ${visibleCells.length} valid visible Voronoi cells out of ${this.points.filter(p => p.isVisible).length} visible points`);
 
                 // Union all visible cells iteratively
                 if (visibleCells.length > 0) {
@@ -390,7 +399,6 @@ class FF120Calculator {
                 console.error('Could not create Voronoi-based visible region:', e);
             }
         }
-
         // Search for maximum visible diameter
         let maxDiameter = 0;
         let maxAngle = 0;
