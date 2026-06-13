@@ -333,17 +333,15 @@ class FF120Calculator {
         }
 
         // Create visible region from boundary points (using nearest-neighbor interpolation)
-        // The calculateBoundaryPoints already uses isPointVisible with nearest-neighbor logic
         let visibleRegion = null;
         
         if (boundaryPoints.length > 2) {
-            // Filter out points with zero radius (completely invisible directions)
             const validPoints = boundaryPoints.filter(p => p.radius > 0.1);
             
             if (validPoints.length > 2) {
                 try {
                     const polygonCoords = validPoints.map(p => [p.x, -p.y]);
-                    polygonCoords.push(polygonCoords[0]); // Close the polygon
+                    polygonCoords.push(polygonCoords[0]);
                     visibleRegion = turf.polygon([polygonCoords]);
                 } catch (e) {
                     console.warn('Could not create visible region polygon:', e);
@@ -351,10 +349,14 @@ class FF120Calculator {
             }
         }
 
+        // Search for maximum visible diameter
+        let maxDiameter = 0;
+        let maxAngle = 0;
+        let maxSegments = [];
+
         // Test lines through fixation point at 0.5-degree increments
-        // Exclude 0°, 90°, 180°, 270° (hemianopia boundary lines: horizontal and vertical)
         for (let angle = 0; angle < 180; angle += 0.5) {
-            // Skip boundary lines (horizontal: 0°/180°, vertical: 90°/270°)
+            // Skip hemianopia boundary lines
             const isHorizontal = Math.abs(angle - 0) < 0.01 || Math.abs(angle - 180) < 0.01;
             const isVertical = Math.abs(angle - 90) < 0.01;
 
@@ -371,48 +373,44 @@ class FF120Calculator {
             }
         }
 
-               // Calculate endpoints from the maximum segments
-        // Find the furthest VISIBLE points on each side of the fixation point
+        // Calculate endpoints from the maximum segments
         let maxEndpoint1 = null;
         let maxEndpoint2 = null;
 
         if (maxSegments.length > 0) {
             const angleRadians = (maxAngle * Math.PI) / 180;
 
-            // Find the furthest visible point in the negative direction (< 0)
-            // and the furthest visible point in the positive direction (> 0)
-            let furthestNegative = 0;  // Closest to 0 in negative direction
-            let furthestPositive = 0;  // Closest to 0 in positive direction
+            let furthestNegative = 0;
+            let furthestPositive = 0;
 
             for (const segment of maxSegments) {
-                // Check both endpoints of each segment
                 const points = [segment.start, segment.end];
 
                 for (const point of points) {
                     if (point < furthestNegative) {
-                        furthestNegative = point;  // More negative = further in negative direction
+                        furthestNegative = point;
                     }
                     if (point > furthestPositive) {
-                        furthestPositive = point;  // More positive = further in positive direction
+                        furthestPositive = point;
                     }
                 }
             }
 
-            // Only create endpoints if we have visible segments in those directions
-            if (furthestNegative < -0.01) {  // Has visible segment in negative direction
+            if (furthestNegative < -0.01) {
                 maxEndpoint1 = {
                     x: furthestNegative * Math.cos(angleRadians),
-                    y: -furthestNegative * Math.sin(angleRadians) // Flip Y for SVG
+                    y: -furthestNegative * Math.sin(angleRadians)
                 };
             }
 
-            if (furthestPositive > 0.01) {  // Has visible segment in positive direction
+            if (furthestPositive > 0.01) {
                 maxEndpoint2 = {
                     x: furthestPositive * Math.cos(angleRadians),
-                    y: -furthestPositive * Math.sin(angleRadians) // Flip Y for SVG
+                    y: -furthestPositive * Math.sin(angleRadians)
                 };
             }
         }
+
         return {
             maxDiameter: maxDiameter,
             angleDegrees: maxAngle,
