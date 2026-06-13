@@ -370,33 +370,48 @@ class FF120Calculator {
             }
         }
 
-        // Calculate endpoints from the maximum segments
+               // Calculate endpoints from the maximum segments
+        // Find the furthest VISIBLE points on each side of the fixation point
         let maxEndpoint1 = null;
         let maxEndpoint2 = null;
 
         if (maxSegments.length > 0) {
             const angleRadians = (maxAngle * Math.PI) / 180;
 
-            // Find the minimum and maximum extents
-            let minExtent = Infinity;
-            let maxExtent = -Infinity;
+            // Find the furthest visible point in the negative direction (< 0)
+            // and the furthest visible point in the positive direction (> 0)
+            let furthestNegative = 0;  // Closest to 0 in negative direction
+            let furthestPositive = 0;  // Closest to 0 in positive direction
 
             for (const segment of maxSegments) {
-                minExtent = Math.min(minExtent, segment.start, segment.end);
-                maxExtent = Math.max(maxExtent, segment.start, segment.end);
+                // Check both endpoints of each segment
+                const points = [segment.start, segment.end];
+
+                for (const point of points) {
+                    if (point < furthestNegative) {
+                        furthestNegative = point;  // More negative = further in negative direction
+                    }
+                    if (point > furthestPositive) {
+                        furthestPositive = point;  // More positive = further in positive direction
+                    }
+                }
             }
 
-            maxEndpoint1 = {
-                x: minExtent * Math.cos(angleRadians),
-                y: -minExtent * Math.sin(angleRadians) // Flip Y for SVG
-            };
+            // Only create endpoints if we have visible segments in those directions
+            if (furthestNegative < -0.01) {  // Has visible segment in negative direction
+                maxEndpoint1 = {
+                    x: furthestNegative * Math.cos(angleRadians),
+                    y: -furthestNegative * Math.sin(angleRadians) // Flip Y for SVG
+                };
+            }
 
-            maxEndpoint2 = {
-                x: maxExtent * Math.cos(angleRadians),
-                y: -maxExtent * Math.sin(angleRadians) // Flip Y for SVG
-            };
+            if (furthestPositive > 0.01) {  // Has visible segment in positive direction
+                maxEndpoint2 = {
+                    x: furthestPositive * Math.cos(angleRadians),
+                    y: -furthestPositive * Math.sin(angleRadians) // Flip Y for SVG
+                };
+            }
         }
-
         return {
             maxDiameter: maxDiameter,
             angleDegrees: maxAngle,
