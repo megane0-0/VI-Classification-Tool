@@ -412,3 +412,13 @@ footer p {
         opacity: 0;
     }
 }
+
+.subtitle-en {
+    font-size: 0.8em;
+    font-weight: normal;
+    opacity: 0.9;
+}
+
+.btn {
+    line-height: 1.4;
+}
