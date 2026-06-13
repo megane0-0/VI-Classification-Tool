@@ -332,16 +332,44 @@ class FF120Calculator {
             };
         }
 
-        // Create polygon from boundary points for visualization
+        // Create polygon using Voronoi cells (perpendicular bisectors)
+        // Each test point has a cell representing its nearest-neighbor region
+        // Only cells with visible test points are filled
         let visibleRegion = null;
-        if (boundaryPoints.length > 2) {
-            const polygonCoords = boundaryPoints.map(p => [p.x, -p.y]); // Flip Y for Turf.js
-            polygonCoords.push(polygonCoords[0]); // Close the polygon
 
+        if (this.points.some(p => p.isVisible)) {
             try {
-                visibleRegion = turf.polygon([polygonCoords]);
+                // Create Voronoi diagram from all test points
+                const pointFeatures = turf.featureCollection(
+                    this.points.map(p => turf.point([p.x, -p.y], { id: p.id, isVisible: p.isVisible }))
+                );
+
+                // Bounding box for Voronoi cells (视野范围)
+                const bbox = [-65, -65, 65, 65];
+                const voronoiPolygons = turf.voronoi(pointFeatures, { bbox: bbox });
+
+                // Union only the cells where test points are visible
+                let visibleCells = [];
+
+                voronoiPolygons.features.forEach(cell => {
+                    if (cell.properties && cell.properties.isVisible) {
+                        visibleCells.push(cell);
+                    }
+                });
+
+                // Union all visible cells
+                if (visibleCells.length > 0) {
+                    visibleRegion = visibleCells[0];
+                    for (let i = 1; i < visibleCells.length; i++) {
+                        try {
+                            visibleRegion = turf.union(visibleRegion, visibleCells[i]);
+                        } catch (e) {
+                            console.warn('Union failed for Voronoi cell', i, e);
+                        }
+                    }
+                }
             } catch (e) {
-                console.warn('Could not create polygon for visualization:', e);
+                console.warn('Could not create Voronoi-based visible region:', e);
             }
         }
 
