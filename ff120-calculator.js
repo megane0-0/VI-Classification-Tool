@@ -624,30 +624,21 @@ const bbox = [-80, -80, 80, 80];
         const dateStr = now.toLocaleString('ja-JP');
         const testTypeName = this.getTestTypeName();
 
-        let text = `視野検査 最大直径計算結果\n`;
+        let text = `視野検査 最大直径計算結果 / Visual Field Maximum Diameter Results\n`;
         text += `========================================\n`;
-        text += `検査タイプ: ${testTypeName}\n`;
-        text += `最大直径: ${this.result.maxDiameter.toFixed(1)}度\n`;
+        text += `検査タイプ / Test Type: ${testTypeName}\n`;
+        text += `最大直径 / Maximum Diameter: ${this.result.maxDiameter.toFixed(1)}度 / ${this.result.maxDiameter.toFixed(1)}°\n`;
 
         if (this.result.angleDegrees !== 0) {
-            text += `方向: ${this.result.angleDegrees.toFixed(1)}° (${this.getDirectionName(this.result.angleDegrees)})\n`;
+            text += `方向 / Direction: ${this.result.angleDegrees.toFixed(1)}° (${this.getDirectionName(this.result.angleDegrees)})\n`;
         }
 
         if (this.result.endpoint1 && this.result.endpoint2) {
-            text += `端点1: (${this.result.endpoint1.x.toFixed(1)}, ${this.result.endpoint1.y.toFixed(1)})\n`;
-            text += `端点2: (${this.result.endpoint2.x.toFixed(1)}, ${this.result.endpoint2.y.toFixed(1)})\n`;
+            text += `端点1 / Endpoint 1: (${this.result.endpoint1.x.toFixed(1)}, ${this.result.endpoint1.y.toFixed(1)})\n`;
+            text += `端点2 / Endpoint 2: (${this.result.endpoint2.x.toFixed(1)}, ${this.result.endpoint2.y.toFixed(1)})\n`;
         }
 
-        text += `測定日時: ${dateStr}\n\n`;
-        text += `境界点（主要方向）:\n`;
-
-        const mainDirections = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
-        mainDirections.forEach(dir => {
-            const bp = this.result.boundaryPoints.find(p => Math.abs(p.direction - dir) < 15);
-            if (bp) {
-                text += `  ${bp.direction.toString().padStart(3)}°: ${bp.radius.toFixed(1)}度\n`;
-            }
-        });
+        text += `測定日時 / Measurement Date: ${dateStr}\n`;
 
         return text;
     }
