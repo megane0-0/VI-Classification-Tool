@@ -661,7 +661,22 @@ const bbox = [-80, -80, 80, 80];
      */
     saveAsImage() {
         const svg = document.getElementById('visualField');
-        const svgData = new XMLSerializer().serializeToString(svg);
+        const svgClone = svg.cloneNode(true);
+
+        // Embed CSS styles into the SVG
+        const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        style.textContent = `
+            .grid-circle { fill: none; stroke: #E0E0E0; stroke-width: 0.3; }
+            .grid-line { stroke: #E0E0E0; stroke-width: 0.2; }
+            .test-point.off { fill: none; stroke: #CCCCCC; stroke-width: 0.3; }
+            .test-point.on { fill: #4CAF50; stroke: #2E7D32; stroke-width: 0.4; }
+            .boundary-line { fill: rgba(76, 175, 80, 0.15); stroke: #4CAF50; stroke-width: 0.5; }
+            .diameter-line { stroke: #F44336; stroke-width: 0.8; stroke-dasharray: 2, 2; }
+            .diameter-endpoint { fill: #F44336; stroke: white; stroke-width: 0.3; }
+        `;
+        svgClone.insertBefore(style, svgClone.firstChild);
+
+        const svgData = new XMLSerializer().serializeToString(svgClone);
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
@@ -671,7 +686,7 @@ const bbox = [-80, -80, 80, 80];
         const img = new Image();
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
-
+        
         img.onload = () => {
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
