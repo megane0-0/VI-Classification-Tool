@@ -343,7 +343,7 @@ class FF120Calculator {
                     this.points.map(p => turf.point([p.x, -p.y]))
                 );
 
-                const bbox = [-65, -65, 65, 65];
+const bbox = [-80, -80, 80, 80];
                 const voronoiPolygons = turf.voronoi(pointFeatures, { bbox: bbox });
 
                 if (voronoiPolygons && voronoiPolygons.features) {
