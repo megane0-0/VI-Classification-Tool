@@ -332,63 +332,22 @@ class FF120Calculator {
             };
         }
 
-        // Create visible region using Voronoi cells (perpendicular bisectors)
-        // Each visible test point's Voronoi cell is merged together
+        // Create visible region from boundary points (using nearest-neighbor interpolation)
+        // The calculateBoundaryPoints already uses isPointVisible with nearest-neighbor logic
         let visibleRegion = null;
-
-        if (this.points.some(p => p.isVisible)) {
-            try {
-        // Create visible region using Voronoi cells (perpendicular bisectors)
-        // Each visible test point's Voronoi cell is merged together
-        let visibleRegion = null;
-
-        if (this.points.some(p => p.isVisible)) {
-            try {
-                // Create Voronoi diagram from all test points
-                const pointFeatures = turf.featureCollection(
-                    this.points.map(p => turf.point([p.x, -p.y], { id: p.id, isVisible: p.isVisible }))
-                );
-
-                // Bounding box for Voronoi cells
-                const bbox = [-65, -65, 65, 65];
-                const voronoiPolygons = turf.voronoi(pointFeatures, { bbox: bbox });
-
-                if (voronoiPolygons && voronoiPolygons.features) {
-                    // Collect all valid visible cells
-                    const visibleCells = [];
-
-                    for (let i = 0; i < voronoiPolygons.features.length; i++) {
-                        const cell = voronoiPolygons.features[i];
-                        const pointId = i;
-
-                        if (this.points[pointId] && this.points[pointId].isVisible) {
-                            // Validate cell geometry before adding
-                            if (cell.geometry &&
-                                cell.geometry.type === 'Polygon' &&
-                                cell.geometry.coordinates &&
-                                cell.geometry.coordinates[0] &&
-                                cell.geometry.coordinates[0].length >= 4) {
-                                visibleCells.push(cell);
-                            }
-                        }
-                    }
-
-                    // Union all visible cells using Turf.js 7.x API
-                    if (visibleCells.length === 1) {
-                        visibleRegion = visibleCells[0];
-                    } else if (visibleCells.length > 1) {
-                        try {
-                            const cellCollection = turf.featureCollection(visibleCells);
-                            visibleRegion = turf.union(cellCollection);
-                        } catch (e) {
-                            console.warn('Union failed, using first cell only:', e);
-                            visibleRegion = visibleCells[0];
-                        }
-                    }
+        
+        if (boundaryPoints.length > 2) {
+            // Filter out points with zero radius (completely invisible directions)
+            const validPoints = boundaryPoints.filter(p => p.radius > 0.1);
+            
+            if (validPoints.length > 2) {
+                try {
+                    const polygonCoords = validPoints.map(p => [p.x, -p.y]);
+                    polygonCoords.push(polygonCoords[0]); // Close the polygon
+                    visibleRegion = turf.polygon([polygonCoords]);
+                } catch (e) {
+                    console.warn('Could not create visible region polygon:', e);
                 }
-            } catch (e) {
-                console.warn('Voronoi region creation failed:', e);
-                // visibleRegion remains null, which is handled gracefully
             }
         }
 
