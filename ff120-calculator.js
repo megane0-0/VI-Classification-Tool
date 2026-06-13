@@ -332,23 +332,31 @@ class FF120Calculator {
             };
         }
 
-        // Create visible region from boundary points (using nearest-neighbor interpolation)
+        // Create visible region by drawing individual areas around each visible point
+        // No merging - just show the influence area of each visible test point
         let visibleRegion = null;
         
-        if (boundaryPoints.length > 2) {
-            const validPoints = boundaryPoints.filter(p => p.radius > 0.1);
-            
-            if (validPoints.length > 2) {
-                try {
-                    const polygonCoords = validPoints.map(p => [p.x, -p.y]);
-                    polygonCoords.push(polygonCoords[0]);
-                    visibleRegion = turf.polygon([polygonCoords]);
-                } catch (e) {
-                    console.warn('Could not create visible region polygon:', e);
+        const visiblePoints = this.points.filter(p => p.isVisible);
+        
+        if (visiblePoints.length > 0) {
+            try {
+                // Create a small circle around each visible point (3-degree radius)
+                const circles = visiblePoints.map(p => 
+                    turf.circle([p.x, -p.y], 3, { steps: 8, units: 'degrees' })
+                );
+                
+                // Combine all circles into a MultiPolygon for visualization
+                if (circles.length === 1) {
+                    visibleRegion = circles[0];
+                } else {
+                    // Create FeatureCollection of all circles
+                    const features = circles.map(c => c);
+                    visibleRegion = turf.featureCollection(features);
                 }
+            } catch (e) {
+                console.warn('Could not create visible region:', e);
             }
         }
-
         // Search for maximum visible diameter
         let maxDiameter = 0;
         let maxAngle = 0;
@@ -513,27 +521,27 @@ class FF120Calculator {
             document.getElementById('visibleRegion').appendChild(path);
         }
 
-        // Draw visible segments of the maximum diameter line
-        if (this.result.visibleSegments && this.result.visibleSegments.length > 0) {
-            const angleRadians = (this.result.angleDegrees * Math.PI) / 180;
+            // Draw visible region (individual areas around each visible point)
+        if (this.result.visibleRegion) {
+            const regions = this.result.visibleRegion.type === 'FeatureCollection'
+                ? this.result.visibleRegion.features
+                : [this.result.visibleRegion];
 
-            this.result.visibleSegments.forEach(segment => {
-                const x1 = segment.start * Math.cos(angleRadians);
-                const y1 = -segment.start * Math.sin(angleRadians); // Flip Y for SVG
-                const x2 = segment.end * Math.cos(angleRadians);
-                const y2 = -segment.end * Math.sin(angleRadians); // Flip Y for SVG
+            regions.forEach(region => {
+                if (region.geometry && region.geometry.coordinates) {
+                    const coords = region.geometry.coordinates[0];
+                    const pathData = coords.map((coord, i) => {
+                        const [x, y] = coord;
+                        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+                    }).join(' ') + ' Z';
 
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', x1);
-                line.setAttribute('y1', y1);
-                line.setAttribute('x2', x2);
-                line.setAttribute('y2', y2);
-                line.setAttribute('class', 'diameter-line');
-                line.setAttribute('stroke-width', '0.8');
-                document.getElementById('diameterLine').appendChild(line);
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', pathData);
+                    path.setAttribute('class', 'boundary-line');
+                    document.getElementById('visibleRegion').appendChild(path);
+                }
             });
         }
-
         // Draw endpoints (overall extent of all visible segments)
         if (this.result.endpoint1 && this.result.endpoint2) {
             [this.result.endpoint1, this.result.endpoint2].forEach(ep => {
