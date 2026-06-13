@@ -338,6 +338,12 @@ class FF120Calculator {
 
         if (this.points.some(p => p.isVisible)) {
             try {
+        // Create visible region using Voronoi cells (perpendicular bisectors)
+        // Each visible test point's Voronoi cell is merged together
+        let visibleRegion = null;
+
+        if (this.points.some(p => p.isVisible)) {
+            try {
                 // Create Voronoi diagram from all test points
                 const pointFeatures = turf.featureCollection(
                     this.points.map(p => turf.point([p.x, -p.y], { id: p.id, isVisible: p.isVisible }))
@@ -347,55 +353,44 @@ class FF120Calculator {
                 const bbox = [-65, -65, 65, 65];
                 const voronoiPolygons = turf.voronoi(pointFeatures, { bbox: bbox });
 
-                if (!voronoiPolygons || !voronoiPolygons.features) {
-                    console.warn('Voronoi generation failed');
-                    return;
-                }
+                if (voronoiPolygons && voronoiPolygons.features) {
+                    // Collect all valid visible cells
+                    const visibleCells = [];
 
-                // Collect all valid visible cells
-                const visibleCells = [];
+                    for (let i = 0; i < voronoiPolygons.features.length; i++) {
+                        const cell = voronoiPolygons.features[i];
+                        const pointId = i;
 
-                for (let i = 0; i < voronoiPolygons.features.length; i++) {
-                    const cell = voronoiPolygons.features[i];
-                    const pointId = i;
-
-                    if (this.points[pointId] && this.points[pointId].isVisible) {
-                        // Validate cell geometry before adding
-                        if (cell.geometry &&
-                            cell.geometry.type === 'Polygon' &&
-                            cell.geometry.coordinates &&
-                            cell.geometry.coordinates[0] &&
-                            cell.geometry.coordinates[0].length >= 4) {
-                            visibleCells.push(cell);
-                        } else {
-                            console.warn(`Skipping invalid Voronoi cell ${i}`);
+                        if (this.points[pointId] && this.points[pointId].isVisible) {
+                            // Validate cell geometry before adding
+                            if (cell.geometry &&
+                                cell.geometry.type === 'Polygon' &&
+                                cell.geometry.coordinates &&
+                                cell.geometry.coordinates[0] &&
+                                cell.geometry.coordinates[0].length >= 4) {
+                                visibleCells.push(cell);
+                            }
                         }
                     }
-                }
 
-                                console.log(`Found ${visibleCells.length} valid visible Voronoi cells out of ${this.points.filter(p => p.isVisible).length} visible points`);
-
-                // Union all visible cells using Turf.js 7.x API
-                if (visibleCells.length > 0) {
+                    // Union all visible cells using Turf.js 7.x API
                     if (visibleCells.length === 1) {
-                        // Only one cell, use it directly
                         visibleRegion = visibleCells[0];
-                    } else {
-                        // Multiple cells: create FeatureCollection and union
+                    } else if (visibleCells.length > 1) {
                         try {
                             const cellCollection = turf.featureCollection(visibleCells);
                             visibleRegion = turf.union(cellCollection);
-                            console.log('Union successful, final type:', visibleRegion.geometry.type);
                         } catch (e) {
-                            console.error('Union failed, falling back to first cell:', e);
+                            console.warn('Union failed, using first cell only:', e);
                             visibleRegion = visibleCells[0];
                         }
                     }
                 }
-        // Search for maximum visible diameter
-        let maxDiameter = 0;
-        let maxAngle = 0;
-        let maxSegments = [];
+            } catch (e) {
+                console.warn('Voronoi region creation failed:', e);
+                // visibleRegion remains null, which is handled gracefully
+            }
+        }
 
         // Test lines through fixation point at 0.5-degree increments
         // Exclude 0°, 90°, 180°, 270° (hemianopia boundary lines: horizontal and vertical)
