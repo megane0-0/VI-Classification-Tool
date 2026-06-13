@@ -332,9 +332,8 @@ class FF120Calculator {
             };
         }
 
-        // Create polygon using Voronoi cells (perpendicular bisectors)
-        // Each test point has a cell representing its nearest-neighbor region
-        // Only cells with visible test points are filled
+        // Create visible region using Voronoi cells (perpendicular bisectors)
+        // Each visible test point's Voronoi cell is merged together
         let visibleRegion = null;
 
         if (this.points.some(p => p.isVisible)) {
@@ -344,32 +343,51 @@ class FF120Calculator {
                     this.points.map(p => turf.point([p.x, -p.y], { id: p.id, isVisible: p.isVisible }))
                 );
 
-                // Bounding box for Voronoi cells (视野范围)
+                // Bounding box for Voronoi cells
                 const bbox = [-65, -65, 65, 65];
                 const voronoiPolygons = turf.voronoi(pointFeatures, { bbox: bbox });
 
-                // Union only the cells where test points are visible
-                let visibleCells = [];
+                if (!voronoiPolygons || !voronoiPolygons.features) {
+                    console.warn('Voronoi generation failed');
+                    return;
+                }
 
-                voronoiPolygons.features.forEach(cell => {
-                    if (cell.properties && cell.properties.isVisible) {
+                // Collect all visible cells
+                const visibleCells = [];
+
+                for (let i = 0; i < voronoiPolygons.features.length; i++) {
+                    const cell = voronoiPolygons.features[i];
+                    const pointId = i; // Feature index corresponds to point index
+
+                    if (this.points[pointId] && this.points[pointId].isVisible) {
                         visibleCells.push(cell);
                     }
-                });
+                }
 
-                // Union all visible cells
+                console.log(`Found ${visibleCells.length} visible Voronoi cells out of ${this.points.filter(p => p.isVisible).length} visible points`);
+
+                // Union all visible cells iteratively
                 if (visibleCells.length > 0) {
                     visibleRegion = visibleCells[0];
+
                     for (let i = 1; i < visibleCells.length; i++) {
                         try {
-                            visibleRegion = turf.union(visibleRegion, visibleCells[i]);
+                            const newUnion = turf.union(visibleRegion, visibleCells[i]);
+                            if (newUnion) {
+                                visibleRegion = newUnion;
+                            } else {
+                                console.warn(`Union returned null at cell ${i}`);
+                            }
                         } catch (e) {
-                            console.warn('Union failed for Voronoi cell', i, e);
+                            console.error(`Union failed at cell ${i}:`, e);
+                            // Continue with current union result
                         }
                     }
+
+                    console.log('Final visible region type:', visibleRegion.geometry.type);
                 }
             } catch (e) {
-                console.warn('Could not create Voronoi-based visible region:', e);
+                console.error('Could not create Voronoi-based visible region:', e);
             }
         }
 
